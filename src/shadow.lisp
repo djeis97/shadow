@@ -7,6 +7,7 @@
              :initform (make-hash-table))))
 
 (defvar *shader-info* (make-instance 'shader-info))
+(defvar *recompilation-hook* (constantly nil))
 
 (defun find-gpu-function (func-spec)
   (destructuring-bind (name . types) func-spec
@@ -50,5 +51,20 @@
     (setf (gethash (stage-type stage) (source program))
           (subseq source (1+ (position #\newline source)) (- (length source) 2)))))
 
-(setf (macro-function 'defstruct-gpu) (macro-function 'varjo:v-defstruct)
-      (macro-function 'defun-gpu) (macro-function 'varjo:v-defun))
+
+(defmacro defun-gpu (name args &body body)
+  (destructuring-bind (in-args uniforms context)
+      (varjo.utils:split-arguments args '(&uniform &context))
+    `(progn
+       (update-gpu-func ',name ',in-args ',uniforms ',context ',body)
+       ',name)))
+
+(defun update-gpu-func (name in-args uniforms context body)
+  "Use varjo to compile the code. If it succeeds then update the function code
+   in varjo and trigger the recompilation hook."
+  (varjo.internals::test-translate-function-split-details
+   name in-args uniforms context body varjo:*stage-names* t)
+  (varjo.internals:add-external-function name in-args uniforms body)
+  (funcall *recompilation-hook* (list name (mapcar #'second in-args))))
+
+(setf (macro-function 'defstruct-gpu) (macro-function 'varjo:v-defstruct))
