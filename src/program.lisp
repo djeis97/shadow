@@ -61,6 +61,24 @@
             (gl:delete-shader shader))))
     program))
 
+(defun translate-program (name)
+  (let ((program (program-by-name name)))
+    (with-slots (%primitive %stages) program
+      (let ((stages (translate-stages %primitive %stages)))
+        (dolist (stage stages)
+          (store-source program stage)
+          (store-attributes program stage)
+          (store-uniforms program stage))
+        (store-blocks stages)))))
+
+(defun translate-dictionary ()
+  "Useful for debugging varjo without a gl context"
+  (loop :for k :being :the :hash-keys :of (programs *shader-info*)
+        :do (translate-program k)))
+
+(defun %release-held-gl-state (program)
+  (with-slots))
+
 (defun build-program (name)
   (let* ((program (program-by-name name))
          (shaders (compile-stages program))
@@ -74,18 +92,20 @@
   (initialize-buffers)
   (maphash
    (lambda (k v)
+     (translate-program k)
      (build-program k)
      (bind-blocks v))
    (programs *shader-info*)))
 
+(defun %add-default-stage-version (version stage)
+  (destructuring-bind (stage-type (&key (version version)) func-spec) stage
+    `(,stage-type (:version ,version) ,func-spec)))
+
 (defun %make-program (name version primitive stage-specs)
-  (let ((program (make-instance 'program))
-        (stages (translate-stages version primitive stage-specs)))
-    (dolist (stage stages)
-      (store-source program stage)
-      (store-attributes program stage)
-      (store-uniforms program stage))
-    (store-blocks stages)
+  (let* ((stage-specs (loop :for stage :in stage-specs
+                            :collect (%add-default-stage-version version stage)))
+         (program (make-instance 'program :primitive primitive
+                                          :stage-specs stage-specs)))
     (setf (gethash name (programs *shader-info*)) program)
     program))
 
