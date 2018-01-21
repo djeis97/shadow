@@ -65,6 +65,6 @@
   (varjo.internals::test-translate-function-split-details
    name in-args uniforms context body varjo:*stage-names* t)
   (varjo.internals:add-external-function name in-args uniforms body)
-  (funcall *recompilation-hook* (list name (mapcar #'second in-args))))
+  (funcall *recompilation-hook*))
 
 (setf (macro-function 'defstruct-gpu) (macro-function 'varjo:v-defstruct))
