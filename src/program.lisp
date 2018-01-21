@@ -10,7 +10,11 @@
    (%attributes :reader attributes
                 :initform (make-hash-table))
    (%uniforms :reader uniforms
-              :initform (make-hash-table))))
+              :initform (make-hash-table))
+   (%primitive :reader primitive
+               :initarg :primitive)
+   (%stages :reader stage-specs
+            :initarg :stage-specs)))
 
 (defstruct (stage-variable (:type vector)
                            (:constructor make-stage-variable (&key name type location))
